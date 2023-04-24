@@ -1,3 +1,8 @@
+# Mizer model for WGSAM keyrun
+
+This is a fork of the NOAA-EDAB/ms-keyrun repository that we will use to create
+a mizer model for Georges Bank as part of the WGSAM Skill Assessment exercise.
+
 # mskeyrun
 
 [![gitleaks](https://github.com/NOAA-EDAB/ms-keyrun/actions/workflows/secretScan.yml/badge.svg)](https://github.com/NOAA-EDAB/ms-keyrun/actions/workflows/secretScan.yml)

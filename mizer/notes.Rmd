@@ -1,0 +1,35 @@
+---
+title: "My notes on the WGSAM skills assessment exercise"
+author: "Gustav Delius"
+date: "2023-04-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+At the 2022 WGSAM meeting it was decided to use the output of an existing Atlantis ecosystem model to generate input datasets for a variety of simpler population models, so that the performance of these models can be evaluated against known (simulated) ecosystem dynamics. This idea is discussed by Sarah Gaichas in the [Generating simulated data](https://noaa-edab.github.io/ms-keyrun/articles/SimData.html) vignette.
+
+# Participants:
+
+-   **Hydra** Sarah Gaichas et al.
+-   **Le Mans** Mike Spence, Robert Thorpe
+-   **Mizer** Mike Spence, Gustav Delius
+-   **Gadget 2&3** Bjarki Elvarsson, Valerio Bartolino, Alfonso Perez, Daniel Howell, Will Butler
+-   **SMS** Nis Sand Jacobsen, Alex Kempf, Morten Vinther
+-   **State-Space** Vanessa Trijoulet
+-   **Rpath** Sean Lucey
+-   **MultiSppCAA** Kiersten Curtis
+-   **CEATTLE** Grant Adams
+-   **MSSP** Howard Townsend
+
+# Meetings
+
+-   2 February 2023. [Notes](https://docs.google.com/document/d/1MQxHJR_P2csd367EWvSejj9dzNMIDB2R7zMGI1wgMJs/edit?usp=sharing)
+
+-   28 April 2023 at <https://slu-se.zoom.us/j/66861921461>
+
+# Simulated data
+
+Simulated data is available via the [mskeyrun](https://github.com/NOAA-EDAB/ms-keyrun) package and additional data requests are discussed in the [issue tracker](https://github.com/NOAA-EDAB/ms-keyrun/issues/56#issuecomment-1428469537) and are appearing on Sarah's [sarah_wgsamsim](https://github.com/NOAA-EDAB/ms-keyrun/tree/sarah_wgsamsim) branch.

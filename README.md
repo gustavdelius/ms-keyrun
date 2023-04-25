@@ -1,7 +1,8 @@
 # Mizer model for WGSAM keyrun
 
 This is a fork of the NOAA-EDAB/ms-keyrun repository that we will use to create
-a mizer model for Georges Bank as part of the WGSAM Skill Assessment exercise.
+a mizer model for the Norwegian and Barents Sea as part of the WGSAM Skill 
+Assessment exercise.
 
 # mskeyrun
 

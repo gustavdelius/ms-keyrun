@@ -28,7 +28,7 @@ At the 2022 WGSAM meeting it was decided to use the output of an existing Atlant
 
 -   2 February 2023. [Notes](https://docs.google.com/document/d/1MQxHJR_P2csd367EWvSejj9dzNMIDB2R7zMGI1wgMJs/edit?usp=sharing)
 
--   28 April 2023 at <https://slu-se.zoom.us/j/66861921461>
+-   28 April 2023. [Notes](https://docs.google.com/document/d/1w5dMU3QBc-49LdRMfp-1Jt6tfO4acSbwG_Psn9cNovA/edit?usp=sharing)
 
 # Simulated data
 

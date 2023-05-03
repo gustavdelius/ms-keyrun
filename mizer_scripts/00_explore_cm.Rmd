@@ -1,0 +1,150 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+remotes::install_github("sizespectrum/mizerExperimental")
+list<-c("tidyverse", "mizerExperimental")
+
+lapply(list, require, character.only=T)
+
+## create "not in" operator
+'%nin%' = Negate('%in%')
+```
+
+
+## decisions made while exploring:
+- use fall biomass
+- take a ten year average of survey observed biomass from start of the time series
+
+
+## read in simulated data
+```{r}
+survObsBiom <- mskeyrun::simSurveyIndex #atlantisom::read_savedsurvs(d.name, 'survB')
+#age_comp_data <- mskeyrun::simSurveyAgeLencomp #atlantisom::read_savedsurvs(d.name, 'survAge') #not using in assessment
+len_comp_data <- mskeyrun::simSurveyLencomp #atlantisom::read_savedsurvs(d.name, 'survLen')
+#wtage <- atlantisom::read_savedsurvs(d.name, 'survWtage')  #not using in assessment
+annage_comp_data <- mskeyrun::simSurveyAgecomp #atlantisom::read_savedsurvs(d.name, 'survAnnAge')
+annage_wtage <- mskeyrun::simSurveyWtatAge #atlantisom::read_savedsurvs(d.name, 'survAnnWtage')
+params <- mskeyrun::simBiolPar
+diet <- mskeyrun::simSurveyDietcomp 
+
+#all_diets <- atlantisom::read_savedsurvs(d.name, 'survDiet') #not using in assessment
+
+catchbio_ss <- mskeyrun::simCatchIndex #atlantisom::read_savedfisheries(d.name, 'Catch')
+catchlen_ss <- mskeyrun::simFisheryLencomp #atlantisom::read_savedfisheries(d.name, "catchLen")
+#fish_age_comp <- #atlantisom::read_savedfisheries(d.name, "catchAge")
+fish_annage_comp <- mskeyrun::simFisheryAgecomp #atlantisom::read_savedfisheries(d.name, 'catchAnnAge')
+fish_annage_wtage <- mskeyrun::simFisheryWtatAge #atlantisom::read_savedfisheries(d.name, 'catchAnnWtage')
+```
+
+## formate for mizer
+```{r}
+sp_params <- annage_wtage %>% group_by(Name) %>% summarise(w_max = max(value))
+sp_params <- sp_params %>% left_join(survObsBiom[survObsBiom$year %in% 40:50,] %>% group_by(Name) %>% summarise(biomass_observed = mean(value)))
+names(sp_params) <- c("species", "w_max", "biomass_observed")
+```
+
+## add more species specific info
+```{r}
+## get pred/prey ratio
+sp_params$beta <- sp_params$w_max/ ## predator mass
+  10^(-2.3 + 2.5*log10(sp_params$w_max) - 0.36*log10(sp_params$w_max)^2) ## prey mass
+
+## add diet breadth
+#sp_params <- sp_params %>% left_join(params[,c("Name", "sigma")])
+sp_params$sigma <- 0.3
+
+## get size adjusted growth parameter (currently using average)
+sp_params$h <- 22
+
+```
+
+
+```{r}
+# make a dummy species interaction matrix of full interaction with everything
+sp_matrix <- as.data.frame(matrix(rep(1, length(unique(sp_params$species))^2), nrow = (length(unique(sp_params$species))),
+                                  dimnames = list(unique(sp_params$species), unique(sp_params$species))))
+```
+
+## build mizer model
+```{r}
+t <- newMultispeciesParams(species_params = sp_params,
+                              #     gear_params = sp_gear,
+                                   interaction = sp_matrix, 
+                                   initial_effort = 1,
+                                   lambda = 2.05, n = 3/4, p = 3/4)
+```
+
+
+## run to steady state
+```{r}
+ta <- steady(t)
+```
+## calibrate to observed biomass
+```{r}
+tb <- calibrateBiomass(ta)
+tc <- matchBiomasses(tb)
+```
+
+
+## check plots
+```{r}
+plotlySpectra(tc, power = 1, total = T)
+plotlySpectra(tc, power = 2, total = T)
+plotBiomassVsSpecies(tc)
+```
+
+## run to steady state again
+```{r}
+td <- tc |>
+    calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() |>
+    calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() |>
+    calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() |>
+    calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() |>
+    calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() 
+```
+
+
+
+```{r}
+summary(td)
+View(td@species_params)
+```
+
+## look at plots
+```{r}
+plotBiomassVsSpecies(tb)
+plotBiomassVsSpecies(td)
+```
+
+
+```{r}
+plotlySpectra(tb, power = 1, total = T)
+plotlySpectra(tc, power = 1, total = T)
+plotlySpectra(td, power = 1, total = T)
+plotlySpectra(td, power = 2, total = T)
+```
+
+```{r}
+sim <- steady(td, return_sim = TRUE, t_max = 12, t_per = 0.2)
+plotBiomass(sim)
+animateSpectra(sim)
+```
+
+
+```{r}
+plot(sim)
+```
+
+
+
+
+
+
+
+
+
+
+

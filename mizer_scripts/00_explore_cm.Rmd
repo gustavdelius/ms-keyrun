@@ -3,9 +3,9 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-```{r}
+```{r set up}
 remotes::install_github("sizespectrum/mizerExperimental")
-list<-c("tidyverse", "mizerExperimental")
+list<-c("tidyverse", "mizerExperimental", "rfishbase")
 
 lapply(list, require, character.only=T)
 
@@ -16,8 +16,7 @@ lapply(list, require, character.only=T)
 
 ## decisions made while exploring:
 - use fall biomass
-- take a ten year average of survey observed biomass from start of the time series
-
+- take a 14 year average of survey observed biomass from start of the time series (the non-fished years)
 
 ## read in simulated data
 ```{r}
@@ -25,7 +24,7 @@ survObsBiom <- mskeyrun::simSurveyIndex #atlantisom::read_savedsurvs(d.name, 'su
 #age_comp_data <- mskeyrun::simSurveyAgeLencomp #atlantisom::read_savedsurvs(d.name, 'survAge') #not using in assessment
 len_comp_data <- mskeyrun::simSurveyLencomp #atlantisom::read_savedsurvs(d.name, 'survLen')
 #wtage <- atlantisom::read_savedsurvs(d.name, 'survWtage')  #not using in assessment
-annage_comp_data <- mskeyrun::simSurveyAgecomp #atlantisom::read_savedsurvs(d.name, 'survAnnAge')
+annage_comp_data <- mskeyrun::simSurveyAgeLencomp #atlantisom::read_savedsurvs(d.name, 'survAnnAge')
 annage_wtage <- mskeyrun::simSurveyWtatAge #atlantisom::read_savedsurvs(d.name, 'survAnnWtage')
 params <- mskeyrun::simBiolPar
 diet <- mskeyrun::simSurveyDietcomp 
@@ -40,28 +39,90 @@ fish_annage_wtage <- mskeyrun::simFisheryWtatAge #atlantisom::read_savedfisherie
 ```
 
 ## formate for mizer
+
+## give species their latin names
 ```{r}
-sp_params <- annage_wtage %>% group_by(Name) %>% summarise(w_max = max(value))
-sp_params <- sp_params %>% left_join(survObsBiom[survObsBiom$year %in% 40:50,] %>% group_by(Name) %>% summarise(biomass_observed = mean(value)))
-names(sp_params) <- c("species", "w_max", "biomass_observed")
+sp_params <- data.frame(Name = c("Long_rough_dab",
+             "Green_halibut",
+             "Mackerel",
+             "Haddock",
+             "Saithe",
+             "Redfish",
+             "Blue_whiting",
+             "Norwegian_ssh",
+             "North_atl_cod",
+             "Polar_cod",
+             "Capelin"),
+    latin = c("Hippoglossoides platessoides",
+              "Reinhardtius hippoglossoides",
+              "Scomber scombrus",
+              "Melanogrammus aeglefinus",
+              "Pollachius virens",
+              "Sebastes mentella",
+              "Micromesistius poutassou",
+              "Clupea harengus",
+              "Gadus morhua",
+              "Boreogadus saida",
+              "Mallotus villosus"))
 ```
 
 ## add more species specific info
 ```{r}
-## get pred/prey ratio
+## max weight caught in (simulated) system 
+sp_params <- sp_params %>% left_join(annage_wtage %>% group_by(Name) %>% summarise(w_max = max(value)))
+
+## observed (simulated) biomass under no fishing
+sp_params <- sp_params %>% left_join(survObsBiom[survObsBiom$year %in% 40:54,] %>% group_by(Name) %>% summarise(biomass_observed = mean(value)))
+
+## a and b factors
+sp_params <- sp_params %>% left_join(params[, c("Name", "WLa", "WLb")])
+names(sp_params) <- c("species", "latin", "w_max", "biomass_observed", "a", "b")
+
+## get pred/prey ratio from Barns et al 2011 https://doi.org/10.1890/07-1551.1
 sp_params$beta <- sp_params$w_max/ ## predator mass
   10^(-2.3 + 2.5*log10(sp_params$w_max) - 0.36*log10(sp_params$w_max)^2) ## prey mass
 
 ## add diet breadth
 #sp_params <- sp_params %>% left_join(params[,c("Name", "sigma")])
-sp_params$sigma <- 0.3
 
 ## get size adjusted growth parameter (currently using average)
 sp_params$h <- 22
 
 ```
 
+## get weight at maturity from fishbase
+```{r}
+## get mean maturity 
+maturity_tbl <- rfishbase::maturity(sp_params$latin)
 
+## get average for now (can select median, by sex, by location ect)
+mean_maturity <- maturity_tbl |>
+    group_by(Species) |>
+    summarise(age_mat = mean(tm, na.rm = T),
+              l_mat = mean(Lm, na.rm = T))
+
+# ## get mean population growth
+# popgrowth_tbl <- rfishbase::popgrowth(sp_params$latin)
+# popgrowth_tbl <- unique(popgrowth_tbl %>%
+#     group_by(Species) %>%
+#     summarise(k_vb = median(K)))
+
+sp_params <- sp_params %>% left_join(mean_maturity, by = c("latin" = "Species"))
+#sp_params <- sp_params %>% left_join(popgrowth_tbl, by = c("latin" = "Species"))
+
+## calculate w_mat from l_mat
+sp_params <-  sp_params %>% 
+    mutate(w_mat = a * l_mat ^ b) 
+
+## need age weight relationship for Boreogadus saida who does not have a l_mat
+sp_params$w_mat[sp_params$latin == "Boreogadus saida"] <- sp_params$w_max[sp_params$latin == "Boreogadus saida"]*0.25
+
+# ## calculate h 
+# sp_params$h <- get_h_default(sp_params)
+
+```
+
+## create generic interaction matrix (use the diet data for this?)
 ```{r}
 # make a dummy species interaction matrix of full interaction with everything
 sp_matrix <- as.data.frame(matrix(rep(1, length(unique(sp_params$species))^2), nrow = (length(unique(sp_params$species))),
@@ -82,12 +143,12 @@ t <- newMultispeciesParams(species_params = sp_params,
 ```{r}
 ta <- steady(t)
 ```
+
 ## calibrate to observed biomass
 ```{r}
 tb <- calibrateBiomass(ta)
 tc <- matchBiomasses(tb)
 ```
-
 
 ## check plots
 ```{r}
@@ -129,12 +190,6 @@ plotlySpectra(td, power = 2, total = T)
 
 ```{r}
 sim <- steady(td, return_sim = TRUE, t_max = 12, t_per = 0.2)
-plotBiomass(sim)
-animateSpectra(sim)
-```
-
-
-```{r}
 plot(sim)
 ```
 

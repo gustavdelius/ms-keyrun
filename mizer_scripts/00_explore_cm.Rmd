@@ -83,7 +83,7 @@ sp_params$beta <- sp_params$w_max/ ## predator mass
   10^(-2.3 + 2.5*log10(sp_params$w_max) - 0.36*log10(sp_params$w_max)^2) ## prey mass
 
 ## add diet breadth
-#sp_params <- sp_params %>% left_join(params[,c("Name", "sigma")])
+sp_params <- sp_params %>% left_join(params[,c("Name", "sigma")])
 
 ## get size adjusted growth parameter (currently using average)
 sp_params$h <- 22

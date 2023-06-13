@@ -5,7 +5,7 @@ output: html_notebook
 
 ```{r set up}
 remotes::install_github("sizespectrum/mizerExperimental")
-list<-c("tidyverse", "mizerExperimental", "rfishbase")
+list<-c("tidyverse", "mizerExperimental", "rfishbase", "mskeyrun")
 
 lapply(list, require, character.only=T)
 
@@ -42,28 +42,8 @@ fish_annage_wtage <- mskeyrun::simFisheryWtatAge #atlantisom::read_savedfisherie
 
 ## give species their latin names
 ```{r}
-sp_params <- data.frame(Name = c("Long_rough_dab",
-             "Green_halibut",
-             "Mackerel",
-             "Haddock",
-             "Saithe",
-             "Redfish",
-             "Blue_whiting",
-             "Norwegian_ssh",
-             "North_atl_cod",
-             "Polar_cod",
-             "Capelin"),
-    latin = c("Hippoglossoides platessoides",
-              "Reinhardtius hippoglossoides",
-              "Scomber scombrus",
-              "Melanogrammus aeglefinus",
-              "Pollachius virens",
-              "Sebastes mentella",
-              "Micromesistius poutassou",
-              "Clupea harengus",
-              "Gadus morhua",
-              "Boreogadus saida",
-              "Mallotus villosus"))
+sp_params <- simFocalSpecies[, c("Code", "Name", "SciName")]
+sp_params$SciName[sp_params$SciName == "Melongrammus aeglefinus"] <- "Melanogrammus aeglefinus"
 ```
 
 ## add more species specific info
@@ -76,14 +56,14 @@ sp_params <- sp_params %>% left_join(survObsBiom[survObsBiom$year %in% 40:54,] %
 
 ## a and b factors
 sp_params <- sp_params %>% left_join(params[, c("Name", "WLa", "WLb")])
-names(sp_params) <- c("species", "latin", "w_max", "biomass_observed", "a", "b")
+names(sp_params) <- c("Code", "species", "latin", "w_max", "biomass_observed", "a", "b")
 
 ## get pred/prey ratio from Barns et al 2011 https://doi.org/10.1890/07-1551.1
 sp_params$beta <- sp_params$w_max/ ## predator mass
   10^(-2.3 + 2.5*log10(sp_params$w_max) - 0.36*log10(sp_params$w_max)^2) ## prey mass
 
 ## add diet breadth
-sp_params <- sp_params %>% left_join(params[,c("Name", "sigma")])
+#sp_params <- sp_params %>% left_join(params[,c("Name", "sigma")])
 
 ## get size adjusted growth parameter (currently using average)
 sp_params$h <- 22
@@ -102,13 +82,13 @@ mean_maturity <- maturity_tbl |>
               l_mat = mean(Lm, na.rm = T))
 
 # ## get mean population growth
-# popgrowth_tbl <- rfishbase::popgrowth(sp_params$latin)
-# popgrowth_tbl <- unique(popgrowth_tbl %>%
-#     group_by(Species) %>%
-#     summarise(k_vb = median(K)))
+popgrowth_tbl <- rfishbase::popgrowth(sp_params$latin)
+popgrowth_tbl <- unique(popgrowth_tbl %>%
+    group_by(Species) %>%
+    summarise(k_vb = median(K)))
 
 sp_params <- sp_params %>% left_join(mean_maturity, by = c("latin" = "Species"))
-#sp_params <- sp_params %>% left_join(popgrowth_tbl, by = c("latin" = "Species"))
+sp_params <- sp_params %>% left_join(popgrowth_tbl, by = c("latin" = "Species"))
 
 ## calculate w_mat from l_mat
 sp_params <-  sp_params %>% 
@@ -118,7 +98,7 @@ sp_params <-  sp_params %>%
 sp_params$w_mat[sp_params$latin == "Boreogadus saida"] <- sp_params$w_max[sp_params$latin == "Boreogadus saida"]*0.25
 
 # ## calculate h 
-# sp_params$h <- get_h_default(sp_params)
+ sp_params$h <- get_h_default(sp_params)
 
 ```
 
@@ -137,7 +117,6 @@ t <- newMultispeciesParams(species_params = sp_params,
                                    initial_effort = 1,
                                    lambda = 2.05, n = 3/4, p = 3/4)
 ```
-
 
 ## run to steady state
 ```{r}
@@ -166,6 +145,9 @@ td <- tc |>
     calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() |>
     calibrateBiomass() |> matchBiomasses() |> matchGrowth() |> steady() 
 ```
+```{r}
+tuneParams(td)
+```
 
 
 
@@ -183,9 +165,9 @@ plotBiomassVsSpecies(td)
 
 ```{r}
 plotlySpectra(tb, power = 1, total = T)
-plotlySpectra(tc, power = 1, total = T)
+#plotlySpectra(tc, power = 1, total = T)
 plotlySpectra(td, power = 1, total = T)
-plotlySpectra(td, power = 2, total = T)
+#plotlySpectra(td, power = 2, total = T)
 ```
 
 ```{r}
